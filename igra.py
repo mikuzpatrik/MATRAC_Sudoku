@@ -66,7 +66,7 @@ def get_game(grid_size, missing_cells):
     return np.array(grid), np.array(game)
 
 def plot_game(grid, game):
-    print(tabulate(grid, tablefmt="rounded_grid"))
+    # print(tabulate(grid, tablefmt="rounded_grid"))
     print(tabulate(game, tablefmt="rounded_grid"))
 
 
@@ -89,14 +89,17 @@ def try_num(game, num, i, j):
 
 def count_input_options(game): 
     counter = {}
+    possibles = {}
     for i in range(9):
         for j in range(9):
             if game[i][j] is None:
                 counter[str(i) + " " + str(j)] = 0
+                possibles[str(i) + " " + str(j)] = []
                 for num in range(1, 10):
                     if try_num(game, num, i, j):
                         counter[str(i) + " " + str(j)] += 1
-    print(counter)
+                        possibles[str(i) + " " + str(j)].append(num)
+    return counter, possibles
 
 def check_game(game): 
     if any(None in sub for sub in game):
@@ -125,14 +128,27 @@ def check_game(game):
             print("Igra ni pravilno resena")
             return False 
 
-# random.seed(0)
+random.seed(0)
 
-# grid, game = get_game(9, 40)
-# plot_game(grid, game)
+grid, game = get_game(9, 50)
+plot_game(grid, game)
 
-# count_input_options(game)
+while True: 
+    counter, possibles = count_input_options(game)
+    print(possibles)
+    solved = False
+    for el in counter.items():
+        if el[1] == 1: 
+            i = int(el[0][0])
+            j = int(el[0][-1])
+            vrednost = possibles[el[0]]
+            game[i][j] = vrednost[0]
+            solved = True
+            break 
+    plot_game(grid, game)
+    if not solved: 
+        break 
 
-# check_game(game)
 
 # Solver idea: 
     # generiram igro 
@@ -143,5 +159,6 @@ def check_game(game):
         # Izberem eno moznost in zacnem resevati:
             # Ce resim --> OK 
             # Ce pridem do polja, ki nima moznih odgovorov: Fail --> Neustrezno
+        
 def solve_game():
     ...
