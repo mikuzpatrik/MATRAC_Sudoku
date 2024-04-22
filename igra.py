@@ -4,12 +4,13 @@ import random
 from tabulate import tabulate
 import copy
 
-def gen_mapping():
+def gen_mapping(N):
+    n = int(np.sqrt(N))
     indeks_to_obmocje_map = {}
-    obmocje_to_indeks_map = {i: [] for i in range(1, 10)}
-    for i in range(9):
-        for j in range(9): 
-            obmocje = 3 * (i // 3) + j // 3 + 1 
+    obmocje_to_indeks_map = {i: [] for i in range(1, N+1)}
+    for i in range(N):
+        for j in range(N): 
+            obmocje = n * (i // n) + j // n + 1 
             key = str(i) + " " + str(j)
             indeks_to_obmocje_map[key] = obmocje
             obmocje_to_indeks_map[obmocje] = obmocje_to_indeks_map[obmocje] + [key]
@@ -18,20 +19,10 @@ def gen_mapping():
 def gen_grid(grid_size):
     vrstice = [[i for i in range(1, grid_size + 1)] for j in range(grid_size)]
     stolpci = [[] for j in range(grid_size)]
-    if grid_size == 3:
-        grid = [[None for i in range(grid_size)] for j in range(grid_size)]
-        for i in range(grid_size):
-            for j in range(grid_size):
-                izbire = [el for el in vrstice[i] if el not in stolpci[j]]
-                cifra = random.choice(izbire)
-                vrstice[i].remove(cifra)
-                grid[i][j] = cifra
-                stolpci[j].append(cifra)
-        return grid 
-    elif grid_size == 9: 
+    if int(np.sqrt(grid_size)) == np.sqrt(grid_size): 
         grid = [[None for i in range(grid_size)] for j in range(grid_size)]
         obmocja = [[] for k in range(grid_size)]
-        mapping, mapping2 = gen_mapping()
+        mapping, mapping2 = gen_mapping(grid_size)
         for i in range(grid_size):
             for j in range(grid_size):
                 obmocje = mapping[str(i) + " " + str(j)]
@@ -56,7 +47,7 @@ def get_game(grid_size, missing_cells):
             pass
 
     game = copy.deepcopy(grid)
-    mapping, mapping2 = gen_mapping()
+    mapping, mapping2 = gen_mapping(grid_size)
     inds = list(mapping.keys())
     inds = random.sample(inds, missing_cells)
     for el in inds: 
@@ -80,7 +71,7 @@ def try_num(game, num, i, j):
         elif num in np.transpose(game)[j]:
             allowed = False
         else:
-            mapping, mapping2 = gen_mapping()
+            mapping, mapping2 = gen_mapping(len(game))
             obmocje = mapping[str(i) + " " + str(j)]
             for el in mapping2[obmocje]:
                 if game[int(el[0])][int(el[-1])] == num:
@@ -88,26 +79,28 @@ def try_num(game, num, i, j):
     return allowed
 
 def count_input_options(game): 
+    N = len(game) 
     counter = {}
     possibles = {}
-    for i in range(9):
-        for j in range(9):
+    for i in range(N):
+        for j in range(N):
             if game[i][j] is None:
                 counter[str(i) + " " + str(j)] = 0
                 possibles[str(i) + " " + str(j)] = []
-                for num in range(1, 10):
+                for num in range(1, N+1):
                     if try_num(game, num, i, j):
                         counter[str(i) + " " + str(j)] += 1
                         possibles[str(i) + " " + str(j)].append(num)
     return counter, possibles
 
 def check_game(game): 
+    N = len(game)
     if any(None in sub for sub in game):
         print("Igra ni koncana!")
         return False 
     else:
-        for i in range(9):
-            for j in range(9):
+        for i in range(N):
+            for j in range(N):
                 num = game[i][j]
                 if game[i].count(num) == 1:
                     vrstica_check = True 
@@ -130,35 +123,79 @@ def check_game(game):
 
 random.seed(0)
 
-grid, game = get_game(9, 50)
+grid, game = get_game(9, 60)
 plot_game(grid, game)
 
-while True: 
+def naive_solver(game):
+    while True: 
+        counter, possibles = count_input_options(game)
+        if possibles == {}:
+            return True 
+        solved = False
+        for el in counter.items():
+            if el[1] == 1: 
+                i = int(el[0][0])
+                j = int(el[0][-1])
+                vrednost = possibles[el[0]]
+                game[i][j] = vrednost[0]
+                solved = True
+                break 
+        if not solved: 
+            break
+        else:
+            return game, solved
+    return game, solved
+
+def advanced_solver(game):
+    # If possible try naive solver, if it is not working go for advance 
+    print(game)
+    game, solved = naive_solver(game)
+    print("Naive solver finished")
     counter, possibles = count_input_options(game)
-    print(possibles)
-    solved = False
-    for el in counter.items():
-        if el[1] == 1: 
-            i = int(el[0][0])
-            j = int(el[0][-1])
-            vrednost = possibles[el[0]]
-            game[i][j] = vrednost[0]
-            solved = True
-            break 
-    plot_game(grid, game)
-    if not solved: 
-        break 
+    print("Counter:", counter)
+    print("Possible:", possibles)
+    get_best_index = {}
+    if solved:
+        print("Game is solved!!!")
+        return game
+    # Pogledam v katere indekse lahko vpisem neko stevilo moznih cifer 
+    for el in counter.keys():
+        count = counter[el]
+        if count in list(get_best_index.keys()):
+            get_best_index[count] = get_best_index[count] + [el]
+        else:
+            get_best_index[count] = [el]
+    mini_count = min(list(get_best_index.keys()))
+    for indeks in list(get_best_index[mini_count]):
+        values = possibles[indeks]
+        for num in values:
+            a, b = int(indeks[0]), int(indeks[-1])
+            try_solve = copy.deepcopy(game)
+            try_solve[a][b] = num
+            try_solve = advanced_solver(try_solve)
+            if solved:
+                plot_game(grid, try_solve)
+    return try_solve
 
 
-# Solver idea: 
-    # generiram igro 
-    # Pogledam katera polja so None --> Tistim poljem priredim vse mozne vrednosti 
-    # Polja katera imajo samo eno mozno vrednost se lahko izpolnijo 
-    # Dinamicno ponavljam 
-    # Tezava: Igra ni resena & In nobeno polje nima le ene moznosti 
-        # Izberem eno moznost in zacnem resevati:
-            # Ce resim --> OK 
-            # Ce pridem do polja, ki nima moznih odgovorov: Fail --> Neustrezno
-        
-def solve_game():
-    ...
+advanced_solver(game)
+
+
+
+def save_game(game):
+    pd.DataFrame(game).to_csv('game.csv', index=False)
+    
+
+def read_game():
+    game = pd.read_csv('game.csv')
+    return game
+
+
+
+
+# Ideja za rankiranje razlicnih sudokujev: 
+#   --> Ce je sudoku resen s pomocjo Naive solverja potem je avtomaticno lahek 
+#   --> Ce potrebujemo backtracking potem je ali srednji ali pa tezek
+#   --> Srednji sudoku je ce imamo backtrack manj kot 5x in nikoli vec kot 2 moznosti
+#   --> Tezak sudoku je ce imamo backtrack vec kot 5x ali pa kdaj vec kot 2 moznosti
+#   --> Tezava: Enolicnost resevanja --> Ce ima sudoku vec resitev (ni enolicen) je dodatna zahtevnost 
