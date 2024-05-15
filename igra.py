@@ -342,11 +342,30 @@ def use_logic(counter, possibles, m, n):
     return counter, possibles 
 
 
+def brute_force_solver(game, m, n):
+    try_game = copy.deepcopy(game)
+    while True: 
+        counter, possibles = count_input_options(try_game, m, n)
+        if possibles == {}:
+            return try_game, True 
+        solved = False
+        for el in counter.items():
+            if el[1] == 1: 
+                i = int(el[0][0])
+                j = int(el[0][-1])
+                vrednost = possibles[el[0]]
+                try_game[i][j] = vrednost[0]
+                solved = True
+                break 
+        if not solved: 
+            break
+    return try_game, solved
+
 def naive_solver(game, m, n):
     try_game = copy.deepcopy(game)
-    try_game = fill_rows_and_cols(game, m, n)
+    try_game = fill_rows_and_cols(try_game, m, n)
     while True: 
-        counter, possibles = count_input_options(game, m, n)
+        counter, possibles = count_input_options(try_game, m, n)
         if possibles == {}:
             return try_game, True 
         solved = False
@@ -402,7 +421,6 @@ def advanced_solver(game, m, n, minimax_moznosti = 0, stevilo_odlocitev = 0, sol
     for indeks in list(get_best_index[mini_count]):
         try_solve = copy.deepcopy(game)
         a, b = int(indeks[0]), int(indeks[-1])
-        try_solve[a][b] = possibles[indeks][0]
     # for indeks in list(possibles.keys()):
         values = possibles[indeks]
         for num in values:
@@ -452,13 +470,12 @@ def get_game(m, n, max_praznih = None):
         el = inds[N]
         i, j = int(el[0]), int(el[-1])
         preizkus = is_game_valid(game, m, n, i, j)
-        print(preizkus)
         if preizkus:
             game[i][j] = None
             prazne_celice += 1
         else:
             ... 
-    return game
+    return game, grid
 
 def count_hints(game):
     count = 0 
@@ -517,6 +534,17 @@ def game_to_string(game):
 # boxed-pair_test - solved
 # string = ".16..78.3.9.8.....87...1.6..48...3..65...9.82.39...65..6.9...2..8...29369246..51."
 
+# sudokus from page 
+# difficulty: 253
+# string = ".7.3...4.3...8.2..2.14.7...5.4....9..2.....5..1....7.3...9.63.2..2.3...9.6...2.8."
+# difficulty: 451
+# string = ".4...7.9..91.8....7.39.1....1..642.....5.8.....571..6....1.58.6....4.91..5.8...2."
+# difficulty: 551
+# string = "37...9..68..1.3.7.........8.2..8...5187...6425...2..1.7.........5.6.2..72..3...61"
+# difficulty: 953
+# string = "..3......8.946.7.22...186.......6.7...8...4...7.8.......294...55.6.328.7......2.."
+
+
 # game = []
 # for i in range(9):
 #     el = string[9*i:9*(i+1)]
@@ -539,7 +567,10 @@ def game_to_string(game):
 #     hints_now = count_hints(game)
 #     plot_game(game)
 #     print(hints_now)
+
 # counter, possibles = count_input_options(game, 3, 3)
+# print(counter)
+
 
 # solvable, solution, a, b, u = advanced_solver(game, 3, 3, solutions=[], is_unique = True)
 
@@ -548,6 +579,49 @@ def game_to_string(game):
 
 
 # sys.exit()
+
+def rate_game(grid, game, m, n, minimax_moznosti = 0, stevilo_odlocitev = 0): 
+    game, _ = brute_force_solver(game, m, n)
+    counter, possibles = count_input_options(game, m, n)
+    if 0 in list(counter.values()):
+        return None, minimax_moznosti, stevilo_odlocitev, False
+    elif counter == {}:
+        return game, minimax_moznosti, stevilo_odlocitev, True
+    get_best_index = {}
+    for el in counter.keys():
+        count = counter[el]
+        if count in list(get_best_index.keys()):
+            get_best_index[count] = get_best_index[count] + [el]
+        else:
+            get_best_index[count] = [el]
+    mini_count = min(list(get_best_index.keys()))
+    try_solve = None
+    if mini_count > minimax_moznosti:
+        minimax_moznosti = mini_count
+    try_solve = copy.deepcopy(game)
+    current_odlocitve = 100
+    for indeks in list(get_best_index[mini_count]):
+        try_solve = copy.deepcopy(game)
+        a, b = int(indeks[0]), int(indeks[-1])
+        try_solve[a][b] = grid[a][b]
+        try_solve, minimax_moznosti, stevilo_odlocitev_final, solved = rate_game(grid, try_solve, m, n, minimax_moznosti, stevilo_odlocitev+1)
+        if solved:
+            if stevilo_odlocitev_final < current_odlocitve: 
+                current_odlocitve = stevilo_odlocitev_final
+            return try_solve, minimax_moznosti, stevilo_odlocitev_final, True 
+    return try_solve, minimax_moznosti, current_odlocitve, False
+
+random.seed(0)
+m = 3; n = 3
+game, grid = get_game(m, n)
+print(game)
+print(grid)
+
+solved_game, minimax, odlocitve, _ = rate_game(grid, game, m, n)
+print(minimax, odlocitve)
+
+
+sys.exit()
 
 random.seed(0)
 dimenzije = [(3, 3), (2, 4), (4, 2), (5, 2), (2, 5)]
