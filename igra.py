@@ -66,6 +66,7 @@ def try_num(game, m, n, num, i, j):
                     allowed = False
     return allowed
 
+
 def count_input_options(game, m, n): 
     N = m*n
     counter = {}
@@ -294,14 +295,15 @@ def boxed_reduction(counter, possibles, m, n):
         for cifra in range(1, m*n+1): 
             pos_obmocja_stolpci, pos_obmocja_vrstice = None, None 
             for i in range(len(Stolpci[N])):
-                key = Keys_Stolpci[N][i]
-                obmocje = map[key]
-                if pos_obmocja_stolpci is None: 
-                    pos_obmocja_stolpci = obmocje 
-                elif pos_obmocja_stolpci == obmocje:
-                    ...
-                else:
-                    pos_obmocja_stolpci = -1 
+                if cifra in Stolpci[N][i]:
+                    key = Keys_Stolpci[N][i]
+                    obmocje = map[key]
+                    if pos_obmocja_stolpci is None: 
+                        pos_obmocja_stolpci = obmocje 
+                    elif pos_obmocja_stolpci == obmocje:
+                        ...
+                    else:
+                        pos_obmocja_stolpci = -1 
             for i in range(len(Vrstice[N])):
                 if cifra in Vrstice[N][i]:
                     key = Keys_Vrstice[N][i]
@@ -313,17 +315,13 @@ def boxed_reduction(counter, possibles, m, n):
                     else:
                         pos_obmocja_vrstice = -1  
             if pos_obmocja_stolpci != -1 and pos_obmocja_stolpci is not None: 
-                print("V obmocju", pos_obmocja_stolpci, "se pojavi cifra", cifra, "samo v stolpcu", N)
                 for el in Keys_Obmocja[pos_obmocja_stolpci]:
                     if cifra in possibles[el] and el not in Keys_Stolpci[N]:
                         to_drop.append((el, cifra))
             if pos_obmocja_vrstice != -1 and pos_obmocja_vrstice is not None: 
-                print("V obmocju", pos_obmocja_vrstice, "se pojavi cifra", cifra, "samo v vrstici", N)
                 for el in Keys_Obmocja[pos_obmocja_vrstice]:
                     if cifra in possibles[el] and el not in Keys_Vrstice[N]:
                         to_drop.append((el, cifra))
-    print("===========")
-    print(possibles)
     for el, cifra in to_drop:
         if cifra in possibles[el]:
             possibles[el].remove(cifra)
@@ -336,9 +334,9 @@ def use_logic(counter, possibles, m, n):
     to_drop = [0]
     while to_drop != []:
         counter, possibles, to_drop = pointed_pairs(counter, possibles, m, n)
-        # counter, possibles, to_drop = boxed_reduction(counter, possibles, m, n)
+        counter, possibles, to_drop = boxed_reduction(counter, possibles, m, n)
     counter, possibles, to_drop = pointed_pairs(counter, possibles, m, n)
-    # counter, possibles, to_drop = boxed_reduction(counter, possibles, m, n)
+    counter, possibles, to_drop = boxed_reduction(counter, possibles, m, n)
     return counter, possibles 
 
 
@@ -381,18 +379,59 @@ def naive_solver(game, m, n):
             break
     return try_game, solved
 
+def naive_solver_with_logic(game, m, n):
+    try_game = copy.deepcopy(game)
+    try_game = fill_rows_and_cols(try_game, m, n)
+    while True: 
+        counter, possibles = count_input_options(try_game, m, n)
+        counter, possibles = use_logic(counter, possibles, m, n)
+        if possibles == {}:
+            return try_game, True 
+        solved = False
+        for el in counter.items():
+            if el[1] == 1: 
+                i = int(el[0][0])
+                j = int(el[0][-1])
+                vrednost = possibles[el[0]]
+                try_game[i][j] = vrednost[0]
+                solved = True
+                break 
+        if not solved: 
+            break
+    return try_game, solved
+
+
+def get_best_possible_index(game, m, n, counter, possibles): 
+    moznosti, indeksi = [], []
+    for indeks in list(possibles.keys()):
+        for cifra in possibles[indeks]:
+            nov_indeks = indeks + " " + str(cifra) 
+            try_game = copy.deepcopy(game)
+            ind = indeks.split(" ")
+            a, b = int(ind[0]), int(ind[-1])
+            try_game[a][b] = cifra 
+            c, p = count_input_options(try_game, m, n)
+            c, p = use_logic(c, p, m, n)
+            nove_moznosti = sum(list(c.values()))
+            moznosti.append(nove_moznosti)
+            indeksi.append(nov_indeks)
+    best = np.argmin(moznosti)
+    inds = indeksi[best].split(" ")
+    sorted_lst = [x for _, x in sorted(zip(moznosti, indeksi))]
+    return sorted_lst
+
 # Prva verzija advanced_solverja, kjer gremo od najbolj verjetne celice proti najmanj verjetni
-def advanced_solver(game, m, n, minimax_moznosti = 0, stevilo_odlocitev = 0, solutions = [], is_unique = False):
+def advanced_solver(game, m, n, minimax_moznosti = 0, stevilo_odlocitev = 0, solutions = [], is_unique = False, prejsnji = None):
     # If possible try naive solver, if it is not working go for advance 
     if is_unique:
         advanced_solver.count = 0
-    game, solved = naive_solver(game, m, n)
+    game, solved = naive_solver_with_logic(game, m, n)
     counter, possibles = count_input_options(game, m, n)
     counter, possibles = use_logic(counter, possibles, m, n)
     advanced_solver.count += 1
     if 0 in list(counter.values()) or (advanced_solver.count > 1000 and not is_unique):
         if is_unique:
-            plot_game(game)
+            print("Neuspesno!")
         return None, None, minimax_moznosti, stevilo_odlocitev, True
     get_best_index = {}
     if solved:
@@ -418,29 +457,126 @@ def advanced_solver(game, m, n, minimax_moznosti = 0, stevilo_odlocitev = 0, sol
     try_solve = None
     if mini_count > minimax_moznosti:
         minimax_moznosti = mini_count
+    potencialni = []
+    for indeks in list(get_best_index[mini_count]):
+        if prejsnji is not None: 
+            a, b = int(indeks[0]), int(indeks[-1])
+            prej_a, prej_b = prejsnji
+            if a != prej_a and prej_b != b: 
+                potencialni.append(indeks)
+    if potencialni == []:
+        potencialni = list(get_best_index[mini_count])
     for indeks in list(get_best_index[mini_count]):
         try_solve = copy.deepcopy(game)
-        a, b = int(indeks[0]), int(indeks[-1])
-    # for indeks in list(possibles.keys()):
         values = possibles[indeks]
         for num in values:
             a, b = int(indeks[0]), int(indeks[-1])
             if try_solve is None:
                 try_solve = copy.deepcopy(game)
             try_solve[a][b] = num
-            solvable, try_solve, moznosti, odlocitve, unique = advanced_solver(try_solve, m, n, minimax_moznosti, stevilo_odlocitev+1, is_unique=is_unique)
+            solvable, try_solve, moznosti, odlocitve, unique = advanced_solver(try_solve, m, n, minimax_moznosti, stevilo_odlocitev+1, is_unique=is_unique, prejsnji = (a, b))
             if not unique:
                 return False, None, moznosti, odlocitve, unique
             if solvable and is_unique:
                 return True, try_solve, moznosti, odlocitve, unique
-        # if not unique:
-        #     break
-        # if solutions != [] and is_unique:
-        #     break
     if solutions != [] and unique:
         return True, solutions[0], moznosti, odlocitve, unique
     else:
         return False, None, moznosti, odlocitve, unique
+
+def advanced_solver_with_optimization(game, m, n, minimax_moznosti = 0, stevilo_odlocitev = 0, solutions = [], is_unique = False, prejsnji = None):
+    # If possible try naive solver, if it is not working go for advance 
+    if is_unique:
+        advanced_solver.count = 0
+    game, solved = naive_solver_with_logic(game, m, n)
+    counter, possibles = count_input_options(game, m, n)
+    counter, possibles = use_logic(counter, possibles, m, n)
+    advanced_solver.count += 1
+    if 0 in list(counter.values()) or (advanced_solver.count > 1000 and not is_unique):
+        if is_unique:
+            print("Neuspesno!")
+        return None, None, minimax_moznosti, stevilo_odlocitev, True
+    get_best_index = {}
+    if solved:
+        kvaliteta = check_sudoku(game, m, n)
+        if solutions == [] and kvaliteta:
+            solutions.append(game)
+            return True, game, minimax_moznosti, stevilo_odlocitev, True
+        elif kvaliteta:
+            if game == solutions[0]:
+                return True, game, minimax_moznosti, stevilo_odlocitev, True
+            else:
+                return False, False, minimax_moznosti, stevilo_odlocitev, False
+        else:
+            return None, None, minimax_moznosti, stevilo_odlocitev, True
+    sorted_lst = get_best_possible_index(game, m, n, counter, possibles)
+    for indeks in sorted_lst:
+        try_solve = copy.deepcopy(game)
+        inds = indeks.split(" ")
+        a, b, cifra = int(inds[0]), int(inds[1]), int(inds[2])
+        try_solve[a][b] = cifra
+        solvable, try_solve, moznosti, odlocitve, unique = advanced_solver(try_solve, m, n, minimax_moznosti, stevilo_odlocitev+1, is_unique=is_unique, prejsnji = (a, b))
+        if not unique:
+            return False, None, moznosti, odlocitve, unique
+        if solvable and is_unique:
+            return True, try_solve, moznosti, odlocitve, unique
+    if solutions != [] and unique:
+        return True, solutions[0], moznosti, odlocitve, unique
+    else:
+        return False, None, moznosti, odlocitve, unique
+
+
+def random_solver(game, m, n, limit):
+
+    def random_backtracker(game, m, n, minimax_moznosti = 0, stevilo_odlocitev = 0, solutions = [], is_unique = False):
+        # If possible try naive solver, if it is not working go for advance f
+        if stevilo_odlocitev == 0:
+            random_backtracker.count = 0
+        game, solved = naive_solver_with_logic(game, m, n)
+        counter, possibles = count_input_options(game, m, n)
+        counter, possibles = use_logic(counter, possibles, m, n)
+        random_backtracker.count += 1
+        if 0 in list(counter.values()) or (random_backtracker.count > 1000 and not is_unique):
+            return None, None, None, None, True
+        if solved:
+            kvaliteta = check_sudoku(game, m, n)
+            if solutions == [] and kvaliteta:
+                solutions.append(game)
+                return True, game, minimax_moznosti, stevilo_odlocitev, True
+            elif kvaliteta:
+                if game == solutions[0]:
+                    return True, game, minimax_moznosti, stevilo_odlocitev, True
+                else:
+                    return False, False, minimax_moznosti, stevilo_odlocitev, False
+            else:
+                return None, None, minimax_moznosti, stevilo_odlocitev, True
+        # Pogledam v katere indekse lahko vpisem neko stevilo moznih cifer 
+        
+        rand_indeks = random.choice(list(possibles.keys()))
+        rand_value = random.choice(possibles[rand_indeks])
+        try_solve = copy.deepcopy(game)
+        rand_ind = rand_indeks.split(" ")
+        a, b = int(rand_ind[0]), int(rand_ind[-1])
+        try_solve[a][b] = rand_value
+        solvable, try_solve, moznosti, odlocitve, unique = random_backtracker(try_solve, m, n, stevilo_odlocitev+1, is_unique=is_unique)
+
+        if not unique:
+            return False, None, moznosti, odlocitve, unique
+        if solvable and is_unique:
+            return True, try_solve, moznosti, odlocitve, unique
+        if solutions != [] and unique:
+            return True, solutions[0], moznosti, odlocitve, unique
+        else:
+            return False, None, moznosti, odlocitve, unique
+        
+    resitev = None
+    count_solving = 0
+    while resitev is None and count_solving < limit:
+        count_solving += 1
+        _, resitev, _, _, _ = random_backtracker(game, m, n, solutions=[], is_unique=True)
+        print("Na iteraciji", count_solving, "smo dobili resitev:", resitev)
+    
+    return resitev
 
 
 def is_game_valid(game, m, n, i, j):
@@ -484,10 +620,6 @@ def count_hints(game):
     count = len(game) * len(game[0]) - count 
     return count
 
-def plot_game(game):
-    # print(tabulate(grid, tablefmt="rounded_grid"))
-    print(tabulate(game, tablefmt="rounded_grid"))
-
 def game_to_string(game):
     string = ""
     for vrstica in game: 
@@ -507,8 +639,8 @@ def game_to_string(game):
 #     for el in vrstica:
 #         substring += el
 #     string += substring
-# Hardest sudoku in the world 
-# string = "8..........36......7..9.2...5...7.......457.....1...3...1....68..85...1..9....4.."
+# Hardest sudoku in the world - solved!!
+string = "8..........36......7..9.2...5...7.......457.....1...3...1....68..85...1..9....4.."
 
 # Se en tezek sudoku
 # string = "1....7.9..3..2...8..96..5....53..9...1..8...26....4...3......1..41.....7..7...3.."
@@ -544,41 +676,48 @@ def game_to_string(game):
 # difficulty: 953
 # string = "..3......8.946.7.22...186.......6.7...8...4...7.8.......294...55.6.328.7......2.."
 
+import datetime
 
-# game = []
-# for i in range(9):
-#     el = string[9*i:9*(i+1)]
-#     vrstica = []
-#     for znak in el:
-#         if znak == ".":
-#             vrstica.append(None)
-#         else:
-#             vrstica.append(int(znak))
-#     game.append(vrstica)
+game = []
+for i in range(9):
+    el = string[9*i:9*(i+1)]
+    vrstica = []
+    for znak in el:
+        if znak == ".":
+            vrstica.append(None)
+        else:
+            vrstica.append(int(znak))
+    game.append(vrstica)
 
-# print("Stevilo namigov:", count_hints(game))
-# plot_game(game)
+print("Stevilo namigov:", count_hints(game))
 
-# hints_before = 0
-# hints_now = count_hints(game)
-# while hints_before != hints_now: 
-#     game, solvable = naive_solver(game, 3, 3)
-#     hints_before = hints_now 
-#     hints_now = count_hints(game)
-#     plot_game(game)
-#     print(hints_now)
+random.seed(1)
+start = datetime.datetime.now()
+game = random_solver(game, 3, 3, limit=1000)
+end = datetime.datetime.now()
 
-# counter, possibles = count_input_options(game, 3, 3)
-# print(counter)
+if game is not None: 
+    print("Bravo!", end - start)
 
+print(game)
 
-# solvable, solution, a, b, u = advanced_solver(game, 3, 3, solutions=[], is_unique = True)
+sys.exit()
 
-# print("Imamo resitev?", solvable)
-# plot_game(solution)
+hints_before = 0
+hints_now = count_hints(game)
+while hints_before != hints_now: 
+    game, solvable = naive_solver(game, 3, 3)
+    hints_before = hints_now 
+    hints_now = count_hints(game)
 
+counter, possibles = count_input_options(game, 3, 3)
 
-# sys.exit()
+solvable, solution, a, b, u = advanced_solver_with_optimization(game, 3, 3, solutions=[], is_unique = True)
+
+print("Imamo resitev?", solvable)
+print(solution)
+
+sys.exit()
 
 def rate_game(grid, game, m, n, minimax_moznosti = 0, stevilo_odlocitev = 0): 
     game, _ = brute_force_solver(game, m, n)
@@ -623,69 +762,5 @@ print(minimax, odlocitve)
 
 sys.exit()
 
-random.seed(0)
-dimenzije = [(3, 3), (2, 4), (4, 2), (5, 2), (2, 5)]
-global_count = 0
-for dimenzija in dimenzije: 
-    count = 0
-    m, n = dimenzija 
-    while count < 5:
-        count += 1
-        global_count += 1
-        try:
-            game = get_game(m, n)
-        except:
-            ...
-        print("Stevilo namigov:", count_hints(game))
-        string = game_to_string(game)
-        hints_before = 0 
-        hints_now = count_hints(game)
-        while hints_before != hints_now: 
-            game, solvable = naive_solver(game, m, n)
-            hints_before = hints_now 
-            hints_now = count_hints(game)
-        if hints_now == (m * n) ** 2:
-            zahtevnost = "lahka"
-        else:
-            zahtevnost = "ni_lahka"
-        name = "games/sudoku_game_" + str(global_count) + "_size_" + str(m) + "_" + str(n) + "_zahtevnost_" + zahtevnost + ".txt"
-        
-        with open(name, "w") as text_file:
-            text_file.write(string)
-
 sys.exit()
 
-solution, solvable = naive_solver(game)
-
-print(solution, solvable)
-
-solvable, solution, a, b, u = advanced_solver(game, solutions=[])
-
-print(solution, solvable, a, b, u)
-
-sys.exit()
-
-def save_game(game):
-    pd.DataFrame(game).to_csv('game.csv', index=False)
-    
-
-def read_game():
-    game = pd.read_csv('game.csv')
-    return game
-
-
-def prepare_and_classify_game(N, number_of_games):
-    i = 0
-    while i < number_of_games:
-        game = get_game(9, 35)
-        print("Stevilo namigov:", count_hints(game))
-        plot_game(game)
-        i += 1
-    # Klasifikacija igre 
-    # If je igra resljiva samo z enostavnimi namigi --> Lahka 
-    # Elif je igra resljiva z opcijami, ki jih je manj kot 3x in ima več kot tretjino namigov --> Srednja 
-    # Else Tezka
-
-random.seed(0)
-
-prepare_and_classify_game(9, 10)

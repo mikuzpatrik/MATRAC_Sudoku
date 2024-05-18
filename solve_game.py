@@ -13,7 +13,7 @@ import datetime
 #         substring += el
 #     string += substring
 # Hardest sudoku in the world 
-# string = "8..........36......7..9.2...5...7.......457.....1...3...1....68..85...1..9....4.."
+string = "8..........36......7..9.2...5...7.......457.....1...3...1....68..85...1..9....4.."
 
 # Se en tezek sudoku
 # string = "1....7.9..3..2...8..96..5....53..9...1..8...26....4...3......1..41.....7..7...3.."
@@ -49,6 +49,7 @@ import datetime
 # difficulty: 953
 # string = "..3......8.946.7.22...186.......6.7...8...4...7.8.......294...55.6.328.7......2.."
 
+# string = "....3.76.5....91.29.........49..53.......327...52..........75.4..1.4.....6......."
 
 game = []
 for i in range(9):
@@ -71,8 +72,13 @@ while hints_before != hints_now:
     hints_before = hints_now 
     hints_now = gf.count_hints(game)
 
-solvable, solution, a, b, u = gf.advanced_solver(game, 3, 3, solutions=[], is_unique = True)
+solvable, solution, a, b, u, stevilo_klicev = gf.advanced_solver(game, 3, 3, solutions=[], is_unique = True, naive_logic=True)
 
 end = datetime.datetime.now() 
 
 print("Trajanje:", end - start)
+print("Stevilo klicev", stevilo_klicev)
+
+print("Solution:", solution)
+
+print("============")
