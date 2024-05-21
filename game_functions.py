@@ -344,7 +344,7 @@ def use_logic(counter, possibles, m, n):
     return counter, possibles 
 
 
-def brute_force_solver(game, m, n):
+def naive_solver(game, m, n):
     try_game = copy.deepcopy(game)
     while True: 
         counter, possibles = count_input_options(try_game, m, n)
@@ -362,29 +362,6 @@ def brute_force_solver(game, m, n):
         if not solved: 
             break
     return try_game, solved
-  
-
-def naive_solver(game, m, n):
-    try_game = copy.deepcopy(game)
-    try_game = fill_rows_and_cols(try_game, m, n)
-    while True: 
-        counter, possibles = count_input_options(try_game, m, n)
-        if possibles == {}:
-            return try_game, True 
-        solved = False
-        for el in counter.items():
-            if el[1] == 1: 
-                ind = el[0].split(" ")
-                i = int(ind[0])
-                j = int(ind[-1])
-                vrednost = possibles[el[0]]
-                try_game[i][j] = vrednost[0]
-                solved = True
-                break 
-        if not solved: 
-            break
-    return try_game, solved
-
 
 def naive_solver_with_logic(game, m, n):
     try_game = copy.deepcopy(game)
@@ -489,7 +466,7 @@ def advanced_solver_without_logic(game, m, n, minimax_moznosti = 0, stevilo_odlo
     # If possible try naive solver, if it is not working go for advance 
     if prejsnji is None:
         advanced_solver_without_logic.count = 0
-    game, solved = brute_force_solver(game, m, n)
+    game, solved = naive_solver(game, m, n)
     counter, possibles = count_input_options(game, m, n)
     advanced_solver_without_logic.count += 1
     if is_unique and advanced_solver_without_logic.count % 200 == 0:
@@ -527,64 +504,91 @@ def advanced_solver_without_logic(game, m, n, minimax_moznosti = 0, stevilo_odlo
         return False, None, moznosti, odlocitve, unique, advanced_solver_without_logic.count
 
 
-def random_solver(game, m, n, limit):
+def random_solver(game, m, n, with_logic = True, limit = None):
 
-    def random_backtracker(game, m, n, minimax_moznosti = 0, stevilo_odlocitev = 0, solutions = [], is_unique = False):
+    mapping, mapping2 = gen_mapping(m, n)
+
+    # Najprej z logiko resimo kolikor je le mogoce
+    hints_before = 0
+    hints_now = count_hints(game)
+    while hints_before != hints_now: 
+        if with_logic:
+            game, solved = naive_solver_with_logic(game, m, n)
+        else:
+            game, solved = naive_solver_with_logic(game, m, n)
+        hints_before = hints_now 
+        hints_now = count_hints(game)
+
+    def random_backtracker(game, m, n, with_logic, solutions = [], is_unique = False):
         # If possible try naive solver, if it is not working go for advance 
-        if stevilo_odlocitev == 0:
-            random_backtracker.count = 0
-        game, solved = naive_solver_with_logic(game, m, n)
-        counter, possibles = count_input_options(game, m, n)
-        counter, possibles = use_logic(counter, possibles, m, n)
+        if with_logic:
+            game, solved = naive_solver_with_logic(game, m, n)
+            counter, possibles = count_input_options(game, m, n)
+            counter, possibles = use_logic(counter, possibles, m, n)
+        else:
+            game, solved = naive_solver(game, m, n)
+            counter, possibles = count_input_options(game, m, n)
         random_backtracker.count += 1
         if 0 in list(counter.values()):
-            return None, None, None, None, True
+            return None, None, None
         if solved:
             kvaliteta = check_sudoku(game, m, n)
             if solutions == [] and kvaliteta:
                 solutions.append(game)
-                return True, game, minimax_moznosti, stevilo_odlocitev, True
+                return True, game, True
             elif kvaliteta:
                 if game == solutions[0]:
-                    return True, game, minimax_moznosti, stevilo_odlocitev, True
+                    return True, game, True
                 else:
-                    return False, False, minimax_moznosti, stevilo_odlocitev, False
+                    return False, False, False
             else:
-                return None, None, minimax_moznosti, stevilo_odlocitev, True
+                return None, None, True
         # Pogledam v katere indekse lahko vpisem neko stevilo moznih cifer 
-        
         rand_indeks = random.choice(list(possibles.keys()))
         rand_value = random.choice(possibles[rand_indeks])
         try_solve = copy.deepcopy(game)
         rand_ind = rand_indeks.split(" ")
         a, b = int(rand_ind[0]), int(rand_ind[-1])
         try_solve[a][b] = rand_value
-        solvable, try_solve, moznosti, odlocitve, unique = random_backtracker(try_solve, m, n, stevilo_odlocitev+1, is_unique=is_unique)
+        solvable, try_solve, unique = random_backtracker(try_solve, m, n, is_unique=is_unique, with_logic=with_logic)
 
         if not unique:
-            return False, None, moznosti, odlocitve, unique
+            return False, None, unique
         if solvable and is_unique:
-            return True, try_solve, moznosti, odlocitve, unique
+            return True, try_solve, unique
         if solutions != [] and unique:
-            return True, solutions[0], moznosti, odlocitve, unique
+            return True, solutions[0], unique
         else:
-            return False, None, moznosti, odlocitve, unique
+            return False, None, unique
+
+    if solved: 
+        return game, 0, 0
+    else:
+        resitev = None
+        count_solving = 0
+        if limit is None: 
+            limit = sys.maxsize
+        while resitev is None and count_solving < limit:
+            count_solving += 1
+            random_backtracker.count = 0
+            _, resitev, _ = random_backtracker(game, m, n, with_logic, solutions=[], is_unique=True)
         
-    resitev = None
-    count_solving = 0
-    while resitev is None and count_solving < limit:
-        count_solving += 1
-        _, resitev, _, _, _ = random_backtracker(game, m, n, solutions=[], is_unique=True)
-    
-    return resitev
+        return resitev, count_solving, random_backtracker.count
 
 
 def is_game_valid(game, m, n, i, j):
     try_game = copy.deepcopy(game)
     try_game[i][j] = None 
-    advanced_solver.count = 0
-    solvable, _, a, b, _ = advanced_solver(try_game, m, n, minimax_moznosti=0, stevilo_odlocitev=0, solutions=[])
-    return solvable
+    resitev = []
+    unique = True
+    for i in range(10):
+        solution, count_solving, _ = random_solver(try_game, m, n, with_logic=True)
+        if resitev == []:
+            resitev = solution
+        if resitev != solution and resitev != []:
+            unique = False 
+            break
+    return unique, count_solving
 
 def get_game(m, n, max_praznih = None):
     if max_praznih is None: 
@@ -604,13 +608,17 @@ def get_game(m, n, max_praznih = None):
             break
         el = inds[N]
         i, j = int(el[0]), int(el[-1])
-        preizkus = is_game_valid(game, m, n, i, j)
+        preizkus, count_solving = is_game_valid(game, m, n, i, j)
         if preizkus:
             game[i][j] = None
             prazne_celice += 1
         else:
             ... 
-    return game, grid
+    if count_solving == 0: 
+        unique = True 
+    else: 
+        unique = False
+    return game, grid, unique
 
 def count_hints(game):
     count = 0 
@@ -630,46 +638,16 @@ def game_to_string(game):
     return string
 
 
-def rate_game(grid, game, m, n, minimax_moznosti = 0, stevilo_odlocitev = 0): 
-    game, _ = brute_force_solver(game, m, n)
-    counter, possibles = count_input_options(game, m, n)
-    if 0 in list(counter.values()):
-        return None, minimax_moznosti, stevilo_odlocitev, False
-    elif counter == {}:
-        return game, minimax_moznosti, stevilo_odlocitev, True
-    get_best_index = {}
-    for el in counter.keys():
-        count = counter[el]
-        if count in list(get_best_index.keys()):
-            get_best_index[count] = get_best_index[count] + [el]
-        else:
-            get_best_index[count] = [el]
-    mini_count = min(list(get_best_index.keys()))
-    try_solve = None
-    if mini_count > minimax_moznosti:
-        minimax_moznosti = mini_count
-    try_solve = copy.deepcopy(game)
-    current_odlocitve = 100
-    for indeks in list(get_best_index[mini_count]):
-        try_solve = copy.deepcopy(game)
-        a, b = int(indeks[0]), int(indeks[-1])
-        try_solve[a][b] = grid[a][b]
-        try_solve, minimax_moznosti, stevilo_odlocitev_final, solved = rate_game(grid, try_solve, m, n, minimax_moznosti, stevilo_odlocitev+1)
-        if solved:
-            if stevilo_odlocitev_final < current_odlocitve: 
-                current_odlocitve = stevilo_odlocitev_final
-            return try_solve, minimax_moznosti, stevilo_odlocitev_final, True 
-    return try_solve, minimax_moznosti, current_odlocitve, False
-
-def get_rating(grid, game, m, n):
-    _, minimax, globina, _ = rate_game(grid, game, m, n)
-    stevilo_namigov = count_hints(game)
-    stevilo_praznih = len(game) * len(game[0]) - stevilo_namigov
-    if minimax < 1: 
-        return "Easy", stevilo_praznih
-    elif minimax == 2 and globina <= 5: 
-        return "Medium", 100 * (globina) + stevilo_praznih
-    elif minimax == 2 and globina <= 10: 
-        return "Hard", 100 * (globina) + stevilo_praznih
-    else: 
-        return "Very hard", 1000 * (minimax - 2) + 100 * (globina) + stevilo_praznih
+def rate_game(grid, game, m, n): 
+    random.seed(0)
+    Depths = [] 
+    while len(Depths) != 10: 
+        solution, _, globina = random_solver(game, m, n, with_logic = False)
+        if solution != grid:
+            print("Izgubili smo enoličnost!!!")
+            return None
+        Depths.append(globina)
+    return np.round(sum(Depths) / len(Depths), 1)
+    
+def plot_game(game):
+    print(tabulate(game, tablefmt="rounded_grid"))
