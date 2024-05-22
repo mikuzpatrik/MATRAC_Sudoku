@@ -506,8 +506,6 @@ def advanced_solver_without_logic(game, m, n, minimax_moznosti = 0, stevilo_odlo
 
 def random_solver(game, m, n, with_logic = True, limit = None):
 
-    mapping, mapping2 = gen_mapping(m, n)
-
     # Najprej z logiko resimo kolikor je le mogoce
     hints_before = 0
     hints_now = count_hints(game)
@@ -515,7 +513,7 @@ def random_solver(game, m, n, with_logic = True, limit = None):
         if with_logic:
             game, solved = naive_solver_with_logic(game, m, n)
         else:
-            game, solved = naive_solver_with_logic(game, m, n)
+            game, solved = naive_solver(game, m, n)
         hints_before = hints_now 
         hints_now = count_hints(game)
 
@@ -599,7 +597,7 @@ def get_game(m, n, max_praznih = None):
             grid = gen_grid(m, n)
         except:
             pass
-
+    print(grid)
     game = copy.deepcopy(grid)
     inds = get_list_of_index(m, n)
     prazne_celice = 0
@@ -639,7 +637,6 @@ def game_to_string(game):
 
 
 def rate_game(grid, game, m, n): 
-    random.seed(0)
     Depths = [] 
     while len(Depths) != 10: 
         solution, _, globina = random_solver(game, m, n, with_logic = False)
@@ -651,3 +648,27 @@ def rate_game(grid, game, m, n):
     
 def plot_game(game):
     print(tabulate(game, tablefmt="rounded_grid"))
+
+
+def game_to_string(game): 
+    string = "" 
+    for el in game: 
+        for znak in el: 
+            if znak is None: 
+                string += "."
+            else:
+                string += str(znak)
+    return string 
+
+def read_sudoku(string, m, n): 
+    game = []
+    for i in range(m*n):
+        el = string[m*n*i:m*n*(i+1)]
+        vrstica = []
+        for znak in el:
+            if znak == ".":
+                vrstica.append(None)
+            else:
+                vrstica.append(int(znak))
+        game.append(vrstica)
+    return game
