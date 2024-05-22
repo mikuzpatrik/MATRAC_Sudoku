@@ -28,6 +28,7 @@ print("Povprečna težavnost dataseta je", dataset["difficulty"].mean())
 df = pd.read_csv("files/testing_set_results.csv")
 
 print("Povprečna težavnost našega sample seta je:", df[df["seed"] == 0]["difficulty"].mean())
+print("Povprečni čas reševanja našega sample seta je", df["time"].mean())
 print("\n")
 
 df_group = group_and_calculate(df, ["difficulty_int"], ["time"])
@@ -39,6 +40,7 @@ plt.title("Average solving time")
 plt.ylabel("Time in seconds")
 plt.xlabel("Difficulty rounded to integer")
 plt.savefig("plots/average_solving_time_rounded.png")
+plt.clf()
 
 df_group = group_and_calculate(df, ["difficulty"], ["time"])
 print("Difficulty and time:")
@@ -49,6 +51,7 @@ plt.title("Average solving time")
 plt.ylabel("Time in seconds")
 plt.xlabel("Difficulty")
 plt.savefig("plots/average_solving_time.png")
+plt.clf()
 
 df_group = group_and_calculate(df, ["difficulty_int"], ["number_of_try"])
 print("Difficulty rounded to integer and number_of_try:")
@@ -59,6 +62,7 @@ plt.title("Average number of solving with random solver")
 plt.ylabel("Number of try")
 plt.xlabel("Difficulty rounded to integer")
 plt.savefig("plots/average_number_of_try.png")
+plt.clf()
 
 df_group = group_and_calculate(df, ["difficulty_int"], ["depth"])
 print("Difficulty rounded to integer and depth:")
@@ -69,11 +73,12 @@ plt.title("Average solving depth")
 plt.ylabel("Depth")
 plt.xlabel("Difficulty rounded to integer")
 plt.savefig("plots/average_depth.png")
+plt.clf()
 
 
 df = pd.read_csv("files/random_with_without_logic.csv")
 print("\n")
-df_group = group_and_calculate(df, ["difficulty_int", "logic"], ["time"])
+df_group = group_and_calculate(df, ["logic"], ["time"])
 print("Primerjava časa izračuna random solverja z in brez logike")
 print(df_group)
 
@@ -92,4 +97,21 @@ print(df_group)
 
 najtezji_generiran = df["difficulty"].max() 
 print("Najtežje generiran sudoku ima tezavnost", najtezji_generiran)
-print(df[df["difficulty"] == najtezji_generiran])
+
+df_najtezji = df[df["difficulty"] == najtezji_generiran]
+game = list(df_najtezji["game"])[0]
+m = list(df_najtezji["m"])[0]
+n = list(df_najtezji["n"])[0]
+gf.plot_game(gf.read_sudoku(game, m, n))
+
+df_mn = df[(df["n"] == 3) & (df["m"] == 2)]
+game = list(df_mn["game"])[0]
+m = list(df_mn["m"])[0]
+n = list(df_mn["n"])[0]
+gf.plot_game(gf.read_sudoku(game, m, n))
+
+df_mn = df[df["n"] == 4]
+game = list(df_mn["game"])[0]
+m = list(df_mn["m"])[0]
+n = list(df_mn["n"])[0]
+gf.plot_game(gf.read_sudoku(game, m, n))

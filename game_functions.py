@@ -1,5 +1,5 @@
 # game_functions contains all the functions used in generate_game and solve_game 
-
+ 
 import numpy as np 
 import random 
 from tabulate import tabulate
