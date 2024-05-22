@@ -47,7 +47,7 @@ string = "8..........36......7..9.2...5...7.......457.....1...3...1....68..85...
 # difficulty: 551
 # string = "37...9..68..1.3.7.........8.2..8...5187...6425...2..1.7.........5.6.2..72..3...61"
 # difficulty: 953
-# string = "..3......8.946.7.22...186.......6.7...8...4...7.8.......294...55.6.328.7......2.."
+string = "..3......8.946.7.22...186.......6.7...8...4...7.8.......294...55.6.328.7......2.."
 
 # string = "....3.76.5....91.29.........49..53.......327...52..........75.4..1.4.....6......."
 
@@ -63,6 +63,8 @@ for i in range(9):
     game.append(vrstica)
 
 print("Stevilo namigov:", gf.count_hints(game))
+
+gf.plot_game(game)
 
 start = datetime.datetime.now()
 hints_before = 0
@@ -80,5 +82,7 @@ print("Trajanje:", end - start)
 print("Stevilo klicev", stevilo_klicev)
 
 print("Solution:", solution)
+
+gf.plot_game(solution)
 
 print("============")
